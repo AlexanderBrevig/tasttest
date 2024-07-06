@@ -1,0 +1,8 @@
+[package]
+name = "tastlib"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+heapless = "0.8.0"
+k_board = {version = "1.2.4", features = ["full"]}
