@@ -18,7 +18,10 @@ pub mod qwerty {
     use super::{Key, Pressed};
 
     pub const Q: Pressed = Pressed(Key::L1);
+    pub const W: Pressed = Pressed(Key::L2);
+    pub const S: Pressed = Pressed(Key::L7);
     pub const D: Pressed = Pressed(Key::L8);
+    pub const F: Pressed = Pressed(Key::L9);
     pub const H: Pressed = Pressed(Key::R6);
     pub const J: Pressed = Pressed(Key::R7);
 }

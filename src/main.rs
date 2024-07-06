@@ -1,7 +1,6 @@
 use heapless::Vec;
 use k_board::{keyboard::Keyboard, keys::Keys};
-use tastlib::chord;
-use tastlib::lex::{chord, Event, Key, STACK_SIZE};
+use tastlib::lex::{chord, Event, Key, Pressed, PRESS_SIZE, STACK_SIZE};
 use tastlib::parse::parse_with;
 
 #[rustfmt::skip]
@@ -27,25 +26,100 @@ fn from_char_to_event(value: char) -> Event {
     }
 }
 
-// chord!(R_CTRL_SHIFT, [Both(H, J), RAny], Ctrl(&Shift(&Identity)));
-chord!(
-    R_CTRL_SHIFT,
-    3,
-    [On(H), On(J), LAny],
-    Ctrl(&Shift(&Identity))
-);
+#[rustfmt::skip]
+/// This mod is mandatory when setting up a custom firmware
+mod config {
+    use tastlib::{alias, chord};
+
+    alias!(TAB, L16);
+    alias!(BCK, L17);
+    alias!(SPC, R17);
+    alias!(RET, R16);
+
+    // Homerow mods left
+    alias!(L_G, L6); //GUI/WIN/COMMAND
+    alias!(L_A, L7); //ALT/OPTION
+    alias!(L_S, L8);
+    alias!(L_C, L9);
+    // Homerow mods right
+    alias!(R_G, R6);
+    alias!(R_A, R7);
+    alias!(R_S, R8);
+    alias!(R_C, R9);
+
+
+    /*
+    Layout
+    */
+    // Homerow mods right
+    chord!( R_GUI,          2, [On(R_G), LAny],                     Mod(&Identity));
+    chord!( R_ALT,          2, [On(R_A), LAny],                     Alt(&Identity));
+    chord!( R_SHIFT,        2, [On(R_S), LAny],                     Shift(&Identity));
+    chord!( R_CTRL,         2, [On(R_C), LAny],                     Ctrl(&Identity));
+
+    // Homerow mods left
+    chord!( L_GUI,          2, [On(L_G), RAny],                     Mod(&Identity));
+    chord!( L_ALT,          2, [On(L_A), RAny],                     Alt(&Identity));
+    chord!( L_SHIFT,        2, [On(L_S), RAny],                     Shift(&Identity));
+    chord!( L_CTRL,         2, [On(L_C), RAny],                     Ctrl(&Identity));
+
+
+    chord!( R_CTRL_SHIFT,   2, [Both(R_C, R_S), LAny],              Ctrl(&Shift(&Identity)));
+    chord!( L_ALLMOD,       4, [On(L_C), On(L_A), On(L_S), RAny],   Ctrl(&Alt(&Shift(&Identity))));
+}
 
 fn eval(stack: &mut Vec<Event, STACK_SIZE>) {
     let chrd = chord(stack);
 
-    let emit = parse_with(&chrd, [R_CTRL_SHIFT]);
+    let emit = parse_with(&chrd, [config::L_ALLMOD, config::R_CTRL_SHIFT]);
     println!("stack {:?}", stack);
     println!("chord {:?}", chrd);
     println!("emit  {:?} for {:?}", emit, chrd.last());
+
+    do_emit(emit, chrd);
+}
+
+fn do_emit(emit: tastlib::parse::Emit<u8>, chrd: Vec<tastlib::lex::Pressed, PRESS_SIZE>) {
+    let last = chrd.last();
+    match emit {
+        tastlib::parse::Emit::Mod(next) => {
+            print!("M-");
+            do_emit(*next, chrd);
+            return;
+        }
+        tastlib::parse::Emit::Alt(next) => {
+            print!("A-");
+            do_emit(*next, chrd);
+            return;
+        }
+        tastlib::parse::Emit::Shift(next) => {
+            print!("S-");
+            do_emit(*next, chrd);
+            return;
+        }
+        tastlib::parse::Emit::Ctrl(next) => {
+            print!("C-");
+            do_emit(*next, chrd);
+            return;
+        }
+        tastlib::parse::Emit::String(str) => {
+            println!("{}", str);
+        }
+        tastlib::parse::Emit::Code(code) => {
+            println!("{}", code);
+        }
+        tastlib::parse::Emit::Identity => {
+            if let Some(Pressed(key)) = last {
+                println!("{:?}", key)
+            } else {
+                println!("NONE");
+            }
+        }
+    }
+    println!("Done");
 }
 
 fn main() {
-    println!("{:?}", R_CTRL_SHIFT);
     let mut stack: Vec<Event, STACK_SIZE> = Vec::new();
     let mut charstck: std::vec::Vec<char> = vec![];
     let render = |stack: &Vec<Event, STACK_SIZE>, charstack: &std::vec::Vec<char>| {
