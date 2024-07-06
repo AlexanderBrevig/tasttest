@@ -26,9 +26,9 @@ pub enum Emit<T: 'static> {
 pub struct ChordEmit<T: 'static>(pub &'static [ChordEvent], pub Emit<T>);
 
 fn rule_match(chord: &Vec<Pressed, PRESS_SIZE>, events: &[ChordEvent]) -> bool {
-    let mut ixoffset = 0;
+    let mut ixoffset: i8 = 0;
     for (ix, event) in events.iter().enumerate() {
-        let ix = ix + ixoffset;
+        let ix = (ix as i8 + ixoffset) as usize;
         if ix >= chord.len() {
             return false;
         }
@@ -39,7 +39,7 @@ fn rule_match(chord: &Vec<Pressed, PRESS_SIZE>, events: &[ChordEvent]) -> bool {
                 subchord.extend_from_slice(&chord[ix..]).unwrap(); //TODO: fix me
                 let event = *(*opt);
                 if !rule_match(&subchord, &[event]) {
-                    return false;
+                    ixoffset -= 1;
                 }
             }
             ChordEvent::Any(a, b, c, d) => {
@@ -66,15 +66,15 @@ fn rule_match(chord: &Vec<Pressed, PRESS_SIZE>, events: &[ChordEvent]) -> bool {
             }
             ChordEvent::RAny => {
                 let Pressed(key) = chord[ix];
-                use crate::lex::Key::*;
-                #[rustfmt::skip]
-                return matches!(key, R1|R2|R3|R4|R5|R6|R7|R8|R9|R10|R11|R12|R13|R14|R15|R16|R17);
+                if !key.is_right() {
+                    return false;
+                }
             }
             ChordEvent::LAny => {
                 let Pressed(key) = chord[ix];
-                use crate::lex::Key::*;
-                #[rustfmt::skip]
-                return matches!(key, L1|L2|L3|L4|L5|L6|L7|L8|L9|L10|L11|L12|L13|L14|L15|L16|L17);
+                if !key.is_left() {
+                    return false;
+                }
             }
         }
     }

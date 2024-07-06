@@ -5,6 +5,19 @@ pub enum Key {
     R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, R12, R13, R14, R15, R16, R17, RAny,
 }
 
+impl Key {
+    pub fn is_left(&self) -> bool {
+        use crate::lex::Key::*;
+        #[rustfmt::skip]
+        return matches!(self, L1|L2|L3|L4|L5|L6|L7|L8|L9|L10|L11|L12|L13|L14|L15|L16|L17);
+    }
+    pub fn is_right(&self) -> bool {
+        use crate::lex::Key::*;
+        #[rustfmt::skip]
+        return matches!(self, R1|R2|R3|R4|R5|R6|R7|R8|R9|R10|R11|R12|R13|R14|R15|R16|R17);
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Event {
     Down(Key),
@@ -62,6 +75,7 @@ use heapless::Vec;
 
 pub const STACK_SIZE: usize = 128;
 pub const PRESS_SIZE: usize = 64;
+pub const CHORD_SIZE: usize = 8;
 
 pub fn chord(stack: &mut Vec<Event, STACK_SIZE>) -> Vec<Pressed, PRESS_SIZE> {
     let mut pressed: Vec<Pressed, PRESS_SIZE> = Vec::new();

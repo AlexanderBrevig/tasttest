@@ -1,7 +1,9 @@
 use heapless::Vec;
 use k_board::{keyboard::Keyboard, keys::Keys};
-use tastlib::lex::{chord, Event, Key, Pressed, PRESS_SIZE, STACK_SIZE};
+use tastlib::lex::{chord, Event, Key, Pressed, CHORD_SIZE, STACK_SIZE};
 use tastlib::parse::parse_with;
+use tastlib::report::build_keyboard_report;
+use usbd_human_interface_device::page::Keyboard as Keyb;
 
 /// This mod is mandatory when setting up a custom firmware
 mod config;
@@ -33,86 +35,38 @@ fn from_char_to_event(value: char) -> Event {
 fn eval(stack: &mut Vec<Event, STACK_SIZE>) {
     let chrd = chord(stack);
 
+    if chrd.is_empty() {
+        return;
+    }
+
+    #[rustfmt::skip]
     let emit = parse_with(
         &chrd,
         [
-            R_GUI,
-            R_ALT,
-            R_SHIFT,
-            R_CTRL,
-            R_GUI_ALT,
-            R_GUI_SHIFT,
-            R_GUI_CTRL,
-            R_ALT_SHIFT,
-            R_CTRL_ALT,
-            R_CTRL_SHIFT,
-            L_GUI,
-            L_ALT,
-            L_SHIFT,
-            L_CTRL,
-            L_ALLMOD,
-            L_GUI_ALT,
-            L_GUI_SHIFT,
-            L_GUI_CTRL,
-            L_ALT_SHIFT,
-            L_CTRL_ALT,
-            L_CTRL_SHIFT,
+            /*mods for right*/R_GUI, R_ALT, R_SHIFT, R_CTRL, R_GUI_ALT, R_GUI_SHIFT, R_GUI_CTRL, R_ALT_SHIFT, R_CTRL_ALT, R_CTRL_SHIFT,
+            /*mods for left*/L_GUI, L_ALT, L_SHIFT, L_CTRL, L_ALLMOD, L_GUI_ALT, L_GUI_SHIFT, L_GUI_CTRL, L_ALT_SHIFT, L_CTRL_ALT, L_CTRL_SHIFT,
         ],
     );
     println!("stack {:?}", stack);
     println!("chord {:?}", chrd);
     println!("emit  {:?} for {:?}", emit, chrd.last());
 
-    do_emit(emit, chrd);
-}
-
-fn do_emit(emit: tastlib::parse::Emit<u8>, chrd: Vec<tastlib::lex::Pressed, PRESS_SIZE>) {
-    if chrd.is_empty() {
-        return;
-    }
+    let mut keyboard: Vec<Keyb, CHORD_SIZE> = Vec::new();
     let Pressed(first) = chrd.first().unwrap();
     let Pressed(last) = chrd.last().unwrap();
-    match emit {
-        tastlib::parse::Emit::Mod(next) => {
-            print!("M-");
-            do_emit(*next, chrd);
-            return;
-        }
-        tastlib::parse::Emit::Alt(next) => {
-            print!("A-");
-            do_emit(*next, chrd);
-            return;
-        }
-        tastlib::parse::Emit::Shift(next) => {
-            print!("S-");
-            do_emit(*next, chrd);
-            return;
-        }
-        tastlib::parse::Emit::Ctrl(next) => {
-            print!("C-");
-            do_emit(*next, chrd);
-            return;
-        }
-        tastlib::parse::Emit::String(str) => {
-            println!("{}", str);
-        }
-        tastlib::parse::Emit::Code(code) => {
-            println!("{}", code);
-        }
-        tastlib::parse::Emit::Identity => {
-            println!("{:?}", last)
-        }
+    build_keyboard_report(emit, first, last, identity, &mut keyboard);
+    // TODO: do whatever you want with the report
+    println!("keyboard {:?}", keyboard);
+}
+
+fn identity(first: Key, last: Key) -> Vec<Keyb, CHORD_SIZE> {
+    match Pressed(first) {
+        TAB => tab_layer(last),
+        BCK => bck_layer(last),
+        SPC => spc_layer(last),
+        RET => ret_layer(last),
+        _ => base_layer(last),
     }
-    let mut chord_no_layer: Vec<Pressed, PRESS_SIZE> = Vec::new();
-    chord_no_layer.extend_from_slice(&chrd[1..]).unwrap();
-    match Pressed(*first) {
-        TAB => println!("{:?}", tab_layer(*last)),
-        BCK => println!("{:?}", bck_layer(*last)),
-        SPC => println!("{:?}", spc_layer(*last)),
-        RET => println!("{:?}", ret_layer(*last)),
-        _ => println!("{:?}", base_layer(*last)),
-    }
-    println!("Done");
 }
 
 fn main() {
@@ -124,6 +78,9 @@ fn main() {
         println!("{:?}", &charstack);
     };
     let mut l16toggle = false;
+    let mut l17toggle = false;
+    let mut r16toggle = false;
+    let mut r17toggle = false;
     for key in Keyboard::new() {
         match key {
             Keys::Char(chr) => {
@@ -142,12 +99,45 @@ fn main() {
             Keys::Left => {
                 if l16toggle {
                     stack.push(Event::Up(Key::L16)).unwrap();
-                    charstck.push('$');
+                    charstck.push('T');
                 } else {
                     stack.push(Event::Down(Key::L16)).unwrap();
-                    charstck.push('%');
+                    charstck.push('T');
                 }
                 l16toggle = !l16toggle;
+                render(&stack, &charstck);
+            }
+            Keys::Right => {
+                if l17toggle {
+                    stack.push(Event::Up(Key::L17)).unwrap();
+                    charstck.push('B');
+                } else {
+                    stack.push(Event::Down(Key::L17)).unwrap();
+                    charstck.push('B');
+                }
+                l17toggle = !l17toggle;
+                render(&stack, &charstck);
+            }
+            Keys::Up => {
+                if r16toggle {
+                    stack.push(Event::Up(Key::R16)).unwrap();
+                    charstck.push('S');
+                } else {
+                    stack.push(Event::Down(Key::R16)).unwrap();
+                    charstck.push('S');
+                }
+                r16toggle = !r16toggle;
+                render(&stack, &charstck);
+            }
+            Keys::Down => {
+                if r17toggle {
+                    stack.push(Event::Up(Key::R17)).unwrap();
+                    charstck.push('R');
+                } else {
+                    stack.push(Event::Down(Key::R17)).unwrap();
+                    charstck.push('R');
+                }
+                r17toggle = !r17toggle;
                 render(&stack, &charstck);
             }
             Keys::Escape => {
