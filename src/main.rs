@@ -4,6 +4,45 @@ use tastlib::lex::{chord, Event, Key, Pressed, PRESS_SIZE, STACK_SIZE};
 use tastlib::parse::parse_with;
 
 #[rustfmt::skip]
+
+/// This mod is mandatory when setting up a custom firmware
+pub mod config {
+    use tastlib::{alias, chord};
+
+    alias!(TAB, L16);
+    alias!(BCK, L17);
+    alias!(SPC, R17);
+    alias!(RET, R16);
+
+    // Homerow mods left
+    alias!(L_G, L6); //GUI/WIN/COMMAND
+    alias!(L_A, L7); //ALT/OPTION
+    alias!(L_S, L8);
+    alias!(L_C, L9);
+    // Homerow mods right
+    alias!(R_G, R6);
+    alias!(R_A, R7);
+    alias!(R_S, R8);
+    alias!(R_C, R9);
+    /* Chords */
+    // Homerow mods right
+    chord!( R_GUI,          2, [On(R_G), LAny],                     Mod(&Identity));
+    chord!( R_ALT,          2, [On(R_A), LAny],                     Alt(&Identity));
+    chord!( R_SHIFT,        2, [On(R_S), LAny],                     Shift(&Identity));
+    chord!( R_CTRL,         2, [On(R_C), LAny],                     Ctrl(&Identity));
+
+    // Homerow mods left
+    chord!( L_GUI,          2, [On(L_G), RAny],                     Mod(&Identity));
+    chord!( L_ALT,          2, [On(L_A), RAny],                     Alt(&Identity));
+    chord!( L_SHIFT,        2, [On(L_S), RAny],                     Shift(&Identity));
+    chord!( L_CTRL,         2, [On(L_C), RAny],                     Ctrl(&Identity));
+
+
+    chord!( R_CTRL_SHIFT,   2, [Both(R_C, R_S), LAny],              Ctrl(&Shift(&Identity)));
+    chord!( L_ALLMOD,       4, [On(L_C), On(L_A), On(L_S), RAny],   Ctrl(&Alt(&Shift(&Identity))));
+}
+
+#[rustfmt::skip]
 fn from_char_to_event(value: char) -> Event {
     use tastlib::lex::Event::Down as D;
     use tastlib::lex::Event::Up as U;
@@ -24,48 +63,6 @@ fn from_char_to_event(value: char) -> Event {
         'n' => U(Key::R11), 'm' => U(Key::R12), ',' => U(Key::R13), '.' => U(Key::R14), '/' => U(Key::R15),
         _ => todo!("Key {} not implemented yet", value),
     }
-}
-
-#[rustfmt::skip]
-/// This mod is mandatory when setting up a custom firmware
-mod config {
-    use tastlib::{alias, chord};
-
-    alias!(TAB, L16);
-    alias!(BCK, L17);
-    alias!(SPC, R17);
-    alias!(RET, R16);
-
-    // Homerow mods left
-    alias!(L_G, L6); //GUI/WIN/COMMAND
-    alias!(L_A, L7); //ALT/OPTION
-    alias!(L_S, L8);
-    alias!(L_C, L9);
-    // Homerow mods right
-    alias!(R_G, R6);
-    alias!(R_A, R7);
-    alias!(R_S, R8);
-    alias!(R_C, R9);
-
-
-    /*
-    Layout
-    */
-    // Homerow mods right
-    chord!( R_GUI,          2, [On(R_G), LAny],                     Mod(&Identity));
-    chord!( R_ALT,          2, [On(R_A), LAny],                     Alt(&Identity));
-    chord!( R_SHIFT,        2, [On(R_S), LAny],                     Shift(&Identity));
-    chord!( R_CTRL,         2, [On(R_C), LAny],                     Ctrl(&Identity));
-
-    // Homerow mods left
-    chord!( L_GUI,          2, [On(L_G), RAny],                     Mod(&Identity));
-    chord!( L_ALT,          2, [On(L_A), RAny],                     Alt(&Identity));
-    chord!( L_SHIFT,        2, [On(L_S), RAny],                     Shift(&Identity));
-    chord!( L_CTRL,         2, [On(L_C), RAny],                     Ctrl(&Identity));
-
-
-    chord!( R_CTRL_SHIFT,   2, [Both(R_C, R_S), LAny],              Ctrl(&Shift(&Identity)));
-    chord!( L_ALLMOD,       4, [On(L_C), On(L_A), On(L_S), RAny],   Ctrl(&Alt(&Shift(&Identity))));
 }
 
 fn eval(stack: &mut Vec<Event, STACK_SIZE>) {

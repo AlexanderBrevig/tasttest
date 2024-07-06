@@ -51,49 +51,15 @@ fn rule_match(chord: &Vec<Pressed, PRESS_SIZE>, events: &[ChordEvent]) -> bool {
             }
             ChordEvent::RAny => {
                 let Pressed(key) = chord[ix];
-                return matches!(
-                    key,
-                    crate::lex::Key::R1
-                        | crate::lex::Key::R2
-                        | crate::lex::Key::R3
-                        | crate::lex::Key::R4
-                        | crate::lex::Key::R5
-                        | crate::lex::Key::R6
-                        | crate::lex::Key::R7
-                        | crate::lex::Key::R8
-                        | crate::lex::Key::R9
-                        | crate::lex::Key::R10
-                        | crate::lex::Key::R11
-                        | crate::lex::Key::R12
-                        | crate::lex::Key::R13
-                        | crate::lex::Key::R14
-                        | crate::lex::Key::R15
-                        | crate::lex::Key::R16
-                        | crate::lex::Key::R17 // | crate::lex::Key::RAny
-                );
+                use crate::lex::Key::*;
+                #[rustfmt::skip]
+                return matches!(key, R1|R2|R3|R4|R5|R6|R7|R8|R9|R10|R11|R12|R13|R14|R15|R16|R17);
             }
             ChordEvent::LAny => {
                 let Pressed(key) = chord[ix];
-                return matches!(
-                    key,
-                    crate::lex::Key::L1
-                        | crate::lex::Key::L2
-                        | crate::lex::Key::L3
-                        | crate::lex::Key::L4
-                        | crate::lex::Key::L5
-                        | crate::lex::Key::L6
-                        | crate::lex::Key::L7
-                        | crate::lex::Key::L8
-                        | crate::lex::Key::L9
-                        | crate::lex::Key::L10
-                        | crate::lex::Key::L11
-                        | crate::lex::Key::L12
-                        | crate::lex::Key::L13
-                        | crate::lex::Key::L14
-                        | crate::lex::Key::L15
-                        | crate::lex::Key::L16
-                        | crate::lex::Key::L17 // | crate::lex::Key::LAny
-                );
+                use crate::lex::Key::*;
+                #[rustfmt::skip]
+                return matches!(key, L1|L2|L3|L4|L5|L6|L7|L8|L9|L10|L11|L12|L13|L14|L15|L16|L17);
             }
         }
     }
@@ -119,13 +85,14 @@ mod tests {
     use super::*;
     use crate::{
         lex::{qwerty::*, PRESS_SIZE},
-        parse::ChordEmit,
-        parse::ChordEvent,
-        parse::ChordEvent::*,
-        parse::Emit,
-        parse::Emit::*,
+        parse::{
+            ChordEmit,
+            ChordEvent::{self, *},
+            Emit::{self, *},
+        },
     };
 
+    // chord!(SHIFT_L, 2, [On(D), RAny], Shift(&Identity));
     const SHIFT_L_EVENTS: [ChordEvent; 2] = [On(D), RAny];
     const SHIFT_L: ChordEmit<u8> = ChordEmit(&SHIFT_L_EVENTS, Shift(&Identity));
 
