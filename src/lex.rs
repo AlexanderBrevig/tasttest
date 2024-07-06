@@ -75,7 +75,7 @@ use heapless::Vec;
 
 pub const STACK_SIZE: usize = 128;
 pub const PRESS_SIZE: usize = 64;
-pub const CHORD_SIZE: usize = 8;
+pub const CHORD_SIZE: usize = 32; // TODO: figure out how to handle Emit::String
 
 pub fn chord(stack: &mut Vec<Event, STACK_SIZE>) -> Vec<Pressed, PRESS_SIZE> {
     let mut pressed: Vec<Pressed, PRESS_SIZE> = Vec::new();

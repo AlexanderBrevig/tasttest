@@ -6,8 +6,8 @@ use usbd_human_interface_device::page::Keyboard as Keyb;
 
 alias!(TAB, L16);
 alias!(BCK, L17);
-alias!(SPC, R17);
-alias!(RET, R16);
+alias!(RET, R17);
+alias!(SPC, R16);
 
 // Homerow mods left
 alias!(L_G, L6); //GUI/WIN/COMMAND
@@ -15,15 +15,15 @@ alias!(L_A, L7); //ALT/OPTION
 alias!(L_S, L8);
 alias!(L_C, L9);
 // Homerow mods right
-alias!(R_G, R9);
-alias!(R_A, R8);
-alias!(R_S, R7);
-alias!(R_C, R6);
+alias!(R_G, R6);
+alias!(R_A, R7);
+alias!(R_S, R8);
+alias!(R_C, R9);
 
 const LAYER_KEYS: ChordEvent = Optional(&Any(TAB, BCK, SPC, RET));
 
 pub fn base_layer(key: Key) -> Vec<Keyb, CHORD_SIZE> {
-    println!("Base layer for {:?}", key);
+    println!("RUN: BASE layer for {:?}", key);
     let mut keyboard: Vec<Keyb, CHORD_SIZE> = Vec::new();
 
     macro_rules! key {
@@ -78,14 +78,14 @@ pub fn base_layer(key: Key) -> Vec<Keyb, CHORD_SIZE> {
 }
 /// Automatically shift base layer
 pub fn tab_layer(key: Key) -> Vec<Keyb, CHORD_SIZE> {
-    println!("Tab layer for {:?}", key);
+    println!("RUN: TAB layer for {:?}", key);
     let mut keyboard: Vec<Keyb, CHORD_SIZE> = Vec::new();
     keyboard.push(Keyb::LeftShift).unwrap();
     keyboard.extend(base_layer(key));
     keyboard
 }
 pub fn bck_layer(key: Key) -> Vec<Keyb, CHORD_SIZE> {
-    println!("Bck layer for {:?}", key);
+    println!("RUN: BCK layer for {:?}", key);
     let mut keyboard: Vec<Keyb, CHORD_SIZE> = Vec::new();
     // TODO: try to make ÆØÅ work
     // switch language, then emit "Æ ;Ø [å
@@ -100,7 +100,7 @@ pub fn bck_layer(key: Key) -> Vec<Keyb, CHORD_SIZE> {
     keyboard
 }
 pub fn spc_layer(key: Key) -> Vec<Keyb, CHORD_SIZE> {
-    println!("Spc layer for {:?}", key);
+    println!("RUN: SPC layer for {:?}", key);
     let mut keyboard: Vec<Keyb, CHORD_SIZE> = Vec::new();
     macro_rules! key {
         ($keyb:ident) => {
@@ -136,8 +136,9 @@ pub fn spc_layer(key: Key) -> Vec<Keyb, CHORD_SIZE> {
     };
     keyboard
 }
+
 pub fn ret_layer(key: Key) -> Vec<Keyb, CHORD_SIZE> {
-    println!("Ret layer for {:?}", key);
+    println!("RUN: RET layer for {:?}", key);
     let mut keyboard: Vec<Keyb, CHORD_SIZE> = Vec::new();
     macro_rules! key {
         ($keyb:ident) => {
@@ -182,6 +183,8 @@ pub fn ret_layer(key: Key) -> Vec<Keyb, CHORD_SIZE> {
         Key::R13 => { key!(Minus); }
         Key::R12 => { key!(LeftShift); key!(Minus); }
         Key::R11 => { /*NOT_BOUND*/ }
+
+        Key::R17 => { key!(ReturnEnter); }
         _ => {}
     };
     keyboard
