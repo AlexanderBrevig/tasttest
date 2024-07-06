@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 heapless = "0.8.0"
 k_board = {version = "1.2.4", features = ["full"]}
+usbd-human-interface-device = "0.5.0"

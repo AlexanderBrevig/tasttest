@@ -1,10 +1,12 @@
 use crate::lex::{Pressed, PRESS_SIZE};
 use heapless::Vec;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum ChordEvent {
+    Any(Pressed, Pressed, Pressed, Pressed),
     Both(Pressed, Pressed),
     On(Pressed),
+    Optional(&'static ChordEvent),
     RAny,
     LAny,
 }
@@ -32,6 +34,19 @@ fn rule_match(chord: &Vec<Pressed, PRESS_SIZE>, events: &[ChordEvent]) -> bool {
         }
         // println!("ix {} chrd {:?} evt {:?}", ix, chord[ix], event);
         match event {
+            ChordEvent::Optional(opt) => {
+                let mut subchord: Vec<Pressed, PRESS_SIZE> = Vec::new();
+                subchord.extend_from_slice(&chord[ix..]).unwrap(); //TODO: fix me
+                let event = *(*opt);
+                if !rule_match(&subchord, &[event]) {
+                    return false;
+                }
+            }
+            ChordEvent::Any(a, b, c, d) => {
+                if chord[ix] != *a && chord[ix] != *b && chord[ix] != *c && chord[ix] != *d {
+                    return false;
+                }
+            }
             ChordEvent::Both(p1, p2) => {
                 // we need to look ahead when encountering a both scenario
                 if chord.len() < ix + 2 {
@@ -107,8 +122,35 @@ mod tests {
     const W_STRING: ChordEmit<u8> =
         ChordEmit(&W_STRING_EVENTS, Ctrl(&Shift(&String("Hello World"))));
 
+    const OPT_CTRL_R1_EVENTS: [ChordEvent; 3] = [
+        Optional(&On(Pressed(crate::lex::Key::L16))),
+        On(Pressed(crate::lex::Key::L9)),
+        On(Pressed(crate::lex::Key::R1)),
+    ];
+    const OPT_CTRL_R1: ChordEmit<u8> = ChordEmit(&OPT_CTRL_R1_EVENTS, Ctrl(&String("Optional")));
+
+    const OPT_MOD_SHIFT_R1_EVENTS: [ChordEvent; 3] = [
+        Optional(&Any(
+            Pressed(crate::lex::Key::L16),
+            Pressed(crate::lex::Key::L17),
+            Pressed(crate::lex::Key::R16),
+            Pressed(crate::lex::Key::R17),
+        )),
+        On(Pressed(crate::lex::Key::L8)),
+        On(Pressed(crate::lex::Key::R1)),
+    ];
+    const OPT_MOD_SHIFT_R1: ChordEmit<u8> =
+        ChordEmit(&OPT_MOD_SHIFT_R1_EVENTS, Ctrl(&String("Optional Modrow")));
+
     // NB: order matters
-    const RULES: [ChordEmit<u8>; 4] = [Q_CODE, W_STRING, CONTROL_SHIFT_R, SHIFT_L];
+    const RULES: [ChordEmit<u8>; 6] = [
+        OPT_CTRL_R1,
+        OPT_MOD_SHIFT_R1,
+        Q_CODE,
+        W_STRING,
+        CONTROL_SHIFT_R,
+        SHIFT_L,
+    ];
 
     #[test]
     fn single_key() {
@@ -153,5 +195,53 @@ mod tests {
 
         let emit = parse_with(&chord, RULES);
         assert_eq!(Ctrl(&Shift(&String("Hello World"))), emit);
+    }
+
+    #[test]
+    fn optional_chord() {
+        use crate::lex::Key::{L16, L17, L9};
+        let mut chord: Vec<Pressed, PRESS_SIZE> = Vec::new();
+        chord
+            .extend_from_slice(&[Pressed(L16), Pressed(L9), P])
+            .unwrap();
+
+        let emit = parse_with(&chord, RULES);
+        assert_eq!(Ctrl(&String("Optional")), emit);
+
+        chord.clear();
+        chord
+            .extend_from_slice(&[Pressed(L17), Pressed(L9), P])
+            .unwrap();
+
+        let emit = parse_with(&chord, RULES);
+        assert_eq!(Identity, emit);
+    }
+
+    #[test]
+    fn optional_any_chord() {
+        use crate::lex::Key::{L15, L16, L17, L8};
+        let mut chord: Vec<Pressed, PRESS_SIZE> = Vec::new();
+        chord
+            .extend_from_slice(&[Pressed(L16), Pressed(L8), P])
+            .unwrap();
+
+        let emit = parse_with(&chord, RULES);
+        assert_eq!(Ctrl(&String("Optional Modrow")), emit);
+
+        chord.clear();
+        chord
+            .extend_from_slice(&[Pressed(L17), Pressed(L8), P])
+            .unwrap();
+
+        let emit = parse_with(&chord, RULES);
+        assert_eq!(Ctrl(&String("Optional Modrow")), emit);
+
+        chord.clear();
+        chord
+            .extend_from_slice(&[Pressed(L15), Pressed(L8), P])
+            .unwrap();
+
+        let emit = parse_with(&chord, RULES);
+        assert_eq!(Identity, emit);
     }
 }
