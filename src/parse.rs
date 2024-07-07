@@ -25,9 +25,11 @@ pub enum Emit<T: 'static> {
 #[derive(Debug)]
 pub struct ChordEmit<T: 'static>(pub &'static [ChordEvent], pub Emit<T>);
 
-fn rule_match(chord: &Vec<Pressed, PRESS_SIZE>, events: &[ChordEvent]) -> bool {
+fn rule_match(chord: &Vec<Pressed, PRESS_SIZE>, rule_events: &[ChordEvent]) -> bool {
     let mut ixoffset: i8 = 0;
-    for (ix, event) in events.iter().enumerate() {
+
+    //TODO: skip if chord.len != events.len
+    for (ix, event) in rule_events.iter().enumerate() {
         let ix = (ix as i8 + ixoffset) as usize;
         if ix >= chord.len() {
             return false;

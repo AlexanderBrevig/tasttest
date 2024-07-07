@@ -20,7 +20,7 @@ alias!(R_A, R7);
 alias!(R_S, R8);
 alias!(R_C, R9);
 
-const LAYER_KEYS: ChordEvent = Optional(&Any(TAB, BCK, SPC, RET));
+const OPT_HRMODS: ChordEvent = Optional(&Any(TAB, BCK, SPC, RET));
 
 pub fn base_layer(key: Key) -> Vec<Keyb, CHORD_SIZE> {
     println!("RUN: BASE layer for {:?}", key);
@@ -194,28 +194,28 @@ pub fn ret_layer(key: Key) -> Vec<Keyb, CHORD_SIZE> {
 mod unformatted {
     use tastlib::chord;
     // Homerow mods right
-    chord!( R_GUI,          3, [LAYER_KEYS, On(R_G), LAny],                     Mod(&Identity));
-    chord!( R_ALT,          3, [LAYER_KEYS, On(R_A), LAny],                     Alt(&Identity));
-    chord!( R_SHIFT,        3, [LAYER_KEYS, On(R_S), LAny],                     Shift(&Identity));
-    chord!( R_CTRL,         3, [LAYER_KEYS, On(R_C), LAny],                     Ctrl(&Identity));
-    chord!( R_GUI_ALT,      3, [LAYER_KEYS, Both(R_G, R_A), LAny],              Mod(&Alt(&Identity)));
-    chord!( R_GUI_SHIFT,    3, [LAYER_KEYS, Both(R_G, R_S), LAny],              Mod(&Shift(&Identity)));
-    chord!( R_GUI_CTRL,     3, [LAYER_KEYS, Both(R_G, R_C), LAny],              Mod(&Ctrl(&Identity)));
-    chord!( R_ALT_SHIFT,    3, [LAYER_KEYS, Both(R_A, R_S), LAny],              Alt(&Shift(&Identity)));
-    chord!( R_CTRL_ALT,     3, [LAYER_KEYS, Both(R_C, R_A), LAny],              Ctrl(&Alt(&Identity)));
-    chord!( R_CTRL_SHIFT,   3, [LAYER_KEYS, Both(R_C, R_S), LAny],              Ctrl(&Shift(&Identity)));
+    chord!( R_GUI,          3, [OPT_HRMODS, On(R_G), LAny],                     Mod(&Identity));
+    chord!( R_ALT,          3, [OPT_HRMODS, On(R_A), LAny],                     Alt(&Identity));
+    chord!( R_SHIFT,        3, [OPT_HRMODS, On(R_S), LAny],                     Shift(&Identity));
+    chord!( R_CTRL,         3, [OPT_HRMODS, On(R_C), LAny],                     Ctrl(&Identity));
+    chord!( R_GUI_ALT,      3, [OPT_HRMODS, Both(R_G, R_A), LAny],              Mod(&Alt(&Identity)));
+    chord!( R_GUI_SHIFT,    3, [OPT_HRMODS, Both(R_G, R_S), LAny],              Mod(&Shift(&Identity)));
+    chord!( R_GUI_CTRL,     3, [OPT_HRMODS, Both(R_G, R_C), LAny],              Mod(&Ctrl(&Identity)));
+    chord!( R_ALT_SHIFT,    3, [OPT_HRMODS, Both(R_A, R_S), LAny],              Alt(&Shift(&Identity)));
+    chord!( R_CTRL_ALT,     3, [OPT_HRMODS, Both(R_C, R_A), LAny],              Ctrl(&Alt(&Identity)));
+    chord!( R_CTRL_SHIFT,   3, [OPT_HRMODS, Both(R_C, R_S), LAny],              Ctrl(&Shift(&Identity)));
 
     // Homerow mods left
-    chord!( L_GUI,          3, [LAYER_KEYS, On(L_G), RAny],                     Mod(&Identity));
-    chord!( L_ALT,          3, [LAYER_KEYS, On(L_A), RAny],                     Alt(&Identity));
-    chord!( L_SHIFT,        3, [LAYER_KEYS, On(L_S), RAny],                     Shift(&Identity));
-    chord!( L_CTRL,         3, [LAYER_KEYS, On(L_C), RAny],                     Ctrl(&Identity));
-    chord!( L_GUI_ALT,      3, [LAYER_KEYS, Both(L_G, L_A), RAny],              Mod(&Alt(&Identity)));
-    chord!( L_GUI_SHIFT,    3, [LAYER_KEYS, Both(L_G, L_S), RAny],              Mod(&Shift(&Identity)));
-    chord!( L_GUI_CTRL,     3, [LAYER_KEYS, Both(L_G, L_C), RAny],              Mod(&Ctrl(&Identity)));
-    chord!( L_ALT_SHIFT,    3, [LAYER_KEYS, Both(L_A, L_S), RAny],              Alt(&Shift(&Identity)));
-    chord!( L_CTRL_ALT,     3, [LAYER_KEYS, Both(L_C, L_A), RAny],              Ctrl(&Alt(&Identity)));
-    chord!( L_CTRL_SHIFT,   3, [LAYER_KEYS, Both(L_C, L_S), RAny],              Ctrl(&Shift(&Identity)));
+    chord!( L_GUI,          3, [OPT_HRMODS, On(L_G), RAny],                     Mod(&Identity));
+    chord!( L_ALT,          3, [OPT_HRMODS, On(L_A), RAny],                     Alt(&Identity));
+    chord!( L_SHIFT,        3, [OPT_HRMODS, On(L_S), RAny],                     Shift(&Identity));
+    chord!( L_CTRL,         3, [OPT_HRMODS, On(L_C), RAny],                     Ctrl(&Identity));
+    chord!( L_GUI_ALT,      3, [OPT_HRMODS, Both(L_G, L_A), RAny],              Mod(&Alt(&Identity)));
+    chord!( L_GUI_SHIFT,    3, [OPT_HRMODS, Both(L_G, L_S), RAny],              Mod(&Shift(&Identity)));
+    chord!( L_GUI_CTRL,     3, [OPT_HRMODS, Both(L_G, L_C), RAny],              Mod(&Ctrl(&Identity)));
+    chord!( L_ALT_SHIFT,    3, [OPT_HRMODS, Both(L_A, L_S), RAny],              Alt(&Shift(&Identity)));
+    chord!( L_CTRL_ALT,     3, [OPT_HRMODS, Both(L_C, L_A), RAny],              Ctrl(&Alt(&Identity)));
+    chord!( L_CTRL_SHIFT,   3, [OPT_HRMODS, Both(L_C, L_S), RAny],              Ctrl(&Shift(&Identity)));
 
 
     chord!( L_ALLMOD,       4, [On(L_C), On(L_A), On(L_S), RAny],   Ctrl(&Alt(&Shift(&Identity))));

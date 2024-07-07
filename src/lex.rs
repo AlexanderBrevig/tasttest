@@ -80,16 +80,20 @@ pub const CHORD_SIZE: usize = 32; // TODO: figure out how to handle Emit::String
 pub fn chord(stack: &mut Vec<Event, STACK_SIZE>) -> Vec<Pressed, PRESS_SIZE> {
     let mut pressed: Vec<Pressed, PRESS_SIZE> = Vec::new();
     if !stack.is_empty() {
-        let remaining = rec_chord(stack, &mut pressed);
-        let start_len = stack.len();
-        for _ in 0..(start_len - remaining) {
-            stack.remove(0);
+        rec_chord(stack, &mut pressed);
+        for press in &pressed {
+            let Pressed(press_key) = press;
+            // remove events from stack used by presses
+            stack.retain(|e| match e {
+                Event::Down(event_key) => *press_key != *event_key,
+                Event::Up(event_key) => *press_key != *event_key,
+            });
         }
     }
     pressed
 }
 
-fn rec_chord(stack: &[Event], pressed: &mut Vec<Pressed, PRESS_SIZE>) -> usize {
+fn rec_chord(stack: &[Event], pressed: &mut Vec<Pressed, PRESS_SIZE>) {
     assert!(!stack.is_empty(), "Stack cannot be empty in rec_chord");
     let root_key = if !pressed.is_empty() {
         Some(pressed[0])
@@ -99,7 +103,7 @@ fn rec_chord(stack: &[Event], pressed: &mut Vec<Pressed, PRESS_SIZE>) -> usize {
     if let Some(Pressed(root_key)) = root_key {
         if let Event::Up(key) = &stack[0] {
             if root_key == *key {
-                return stack.len() - 1; // ignore current token
+                return;
             }
         }
     }
@@ -116,9 +120,8 @@ fn rec_chord(stack: &[Event], pressed: &mut Vec<Pressed, PRESS_SIZE>) -> usize {
         }
     }
     if stack.len() >= 2 {
-        return rec_chord(&stack[1..], pressed);
+        rec_chord(&stack[1..], pressed);
     }
-    0
 }
 
 #[cfg(test)]
@@ -154,6 +157,26 @@ mod tests {
     }
 
     #[test]
+    fn two_single_weird_timing() {
+        let mut stack: Vec<Event, STACK_SIZE> = Vec::new();
+        stack.push(Down(L1)).unwrap();
+        stack.push(Down(L2)).unwrap();
+        stack.push(Up(L1)).unwrap();
+
+        let presses = chord(&mut stack);
+        assert_eq!(stack.len(), 1);
+        assert_eq!(presses.len(), 1);
+        assert_eq!(Pressed(L1), presses[0]);
+
+        stack.push(Up(L2)).unwrap();
+
+        let presses = chord(&mut stack);
+        assert_eq!(stack.len(), 0);
+        assert_eq!(presses.len(), 1);
+        assert_eq!(Pressed(L2), presses[0]);
+    }
+
+    #[test]
     fn two_single_key_strokes() {
         let mut stack: Vec<Event, STACK_SIZE> = Vec::new();
         stack.push(Down(L1)).unwrap();
@@ -185,6 +208,7 @@ mod tests {
         assert_eq!(Pressed(L1), presses[0]);
         assert_eq!(Pressed(L2), presses[1]);
     }
+
     #[test]
     fn two_key_chord_surplus_then_single() {
         let mut stack: Vec<Event, STACK_SIZE> = Vec::new();
