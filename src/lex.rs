@@ -55,12 +55,12 @@ pub mod qwerty {
     alias!(J, R9);
     alias!(K, R8);
     alias!(L, R7);
-    alias!(SEMI, R6);
+    alias!(SEMICOLON, R6);
     alias!(N, R15);
     alias!(M, R14);
     alias!(COMMA, R13);
-    alias!(PERIOD, R12);
-    alias!(QUESTION, R11);
+    alias!(DOT, R12);
+    alias!(FORWARDSLASH, R11);
 }
 
 pub mod colemak {
@@ -75,12 +75,26 @@ use heapless::Vec;
 
 pub const STACK_SIZE: usize = 128;
 pub const PRESS_SIZE: usize = 64;
-pub const CHORD_SIZE: usize = 32; // TODO: figure out how to handle Emit::String
+pub const REPORT_SIZE: usize = 32; // TODO: figure out how to handle Emit::String
 
 pub fn chord(stack: &mut Vec<Event, STACK_SIZE>) -> Vec<Pressed, PRESS_SIZE> {
     let mut pressed: Vec<Pressed, PRESS_SIZE> = Vec::new();
     if !stack.is_empty() {
         rec_chord(stack, &mut pressed);
+        let Event::Down(root) = stack[0] else {
+            // Stack can never start with an Event::Up
+            stack.clear(); // Something _very_ bad has happened
+            pressed.clear();
+            return pressed;
+        };
+        if pressed.is_empty() {
+            return pressed;
+        }
+        let Pressed(first) = pressed[0];
+        if root != first {
+            pressed.clear();
+            return pressed;
+        }
         for press in &pressed {
             let Pressed(press_key) = press;
             // remove events from stack used by presses
@@ -143,6 +157,18 @@ mod tests {
     }
 
     #[test]
+    fn single_key_fail() {
+        let mut stack: Vec<Event, STACK_SIZE> = Vec::new();
+        stack.push(Up(L1)).unwrap();
+        stack.push(Down(L1)).unwrap();
+
+        let presses = chord(&mut stack);
+        // This is illegal, reset stack with no presses
+        assert_eq!(stack.len(), 0);
+        assert_eq!(presses.len(), 0);
+    }
+
+    #[test]
     fn single_key_with_surplus() {
         let mut stack: Vec<Event, STACK_SIZE> = Vec::new();
         stack.push(Down(L1)).unwrap();
@@ -200,6 +226,25 @@ mod tests {
         stack.push(Down(L1)).unwrap();
         stack.push(Down(L2)).unwrap();
         stack.push(Up(L2)).unwrap();
+        stack.push(Up(L1)).unwrap();
+
+        let presses = chord(&mut stack);
+        assert_eq!(stack.len(), 0);
+        assert_eq!(presses.len(), 2);
+        assert_eq!(Pressed(L1), presses[0]);
+        assert_eq!(Pressed(L2), presses[1]);
+    }
+
+    #[test]
+    fn two_key_chord_in_eval() {
+        let mut stack: Vec<Event, STACK_SIZE> = Vec::new();
+        stack.push(Down(L1)).unwrap();
+        stack.push(Down(L2)).unwrap();
+        stack.push(Up(L2)).unwrap();
+        let presses = chord(&mut stack);
+        assert_eq!(stack.len(), 3);
+        assert_eq!(presses.len(), 0);
+
         stack.push(Up(L1)).unwrap();
 
         let presses = chord(&mut stack);

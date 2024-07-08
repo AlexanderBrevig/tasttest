@@ -2,27 +2,51 @@ use heapless::Vec;
 use usbd_human_interface_device::page::Keyboard as Keyb;
 
 use crate::{
-    lex::{Key, CHORD_SIZE},
-    parse::Emit,
+    lex::{chord, Event, Key, Pressed, PRESS_SIZE, REPORT_SIZE, STACK_SIZE},
+    parse::{parse_with, ChordEmit, Emit},
 };
 
-type IdentityFn = fn(Key, Key) -> Vec<Keyb, CHORD_SIZE>;
+pub fn eval<const RULE_SIZE: usize>(
+    stack: &mut Vec<Event, STACK_SIZE>,
+    rules: &[ChordEmit<Keyb>; RULE_SIZE],
+) -> Vec<Keyb, REPORT_SIZE> {
+    let mut keyboard: Vec<Keyb, REPORT_SIZE> = Vec::new();
+
+    let chrd = chord(stack);
+
+    if chrd.is_empty() {
+        return keyboard;
+    }
+
+    let emit = parse_with(&chrd, rules);
+
+    let identity = if chrd.len() > 1 {
+        let mut identity_chord: Vec<Pressed, PRESS_SIZE> = Vec::new();
+        let last = chrd.last().unwrap();
+        identity_chord.push(*last).unwrap();
+        parse_with(&identity_chord, rules)
+    } else {
+        emit
+    };
+    let Pressed(first) = chrd.first().unwrap();
+    build_keyboard_report(emit, identity, first, &mut keyboard);
+    keyboard
+}
 
 pub fn build_keyboard_report(
     emit: Emit<Keyb>,
+    identity: Emit<Keyb>,
     first: &Key,
-    last: &Key,
-    identity: IdentityFn,
-    keyboard: &mut Vec<Keyb, CHORD_SIZE>,
+    keyboard: &mut Vec<Keyb, REPORT_SIZE>,
 ) {
     let emit = build_keyboard_report_modifiers(emit, first, keyboard);
-    build_keyboard_report_layers(emit, first, last, identity, keyboard);
+    build_keyboard_report_identity(emit, identity, keyboard);
 }
 
 fn build_keyboard_report_modifiers(
     emit: Emit<Keyb>,
     first: &Key,
-    keyboard: &mut Vec<Keyb, CHORD_SIZE>,
+    keyboard: &mut Vec<Keyb, REPORT_SIZE>,
 ) -> Emit<Keyb> {
     match emit {
         Emit::Mod(next) => {
@@ -62,7 +86,7 @@ fn build_keyboard_report_modifiers(
 }
 
 fn report_from_chr(chr: char) -> Keyb {
-    let mut keyboard: Vec<Keyb, CHORD_SIZE> = Vec::new();
+    let mut keyboard: Vec<Keyb, REPORT_SIZE> = Vec::new();
     if chr.is_uppercase() {
         keyboard.push(Keyb::LeftShift).unwrap();
     }
@@ -76,12 +100,10 @@ fn report_from_chr(chr: char) -> Keyb {
     }
 }
 
-fn build_keyboard_report_layers(
+fn build_keyboard_report_identity(
     emit: Emit<Keyb>,
-    first: &Key,
-    last: &Key,
-    identity: IdentityFn,
-    keyboard: &mut Vec<Keyb, CHORD_SIZE>,
+    identity: Emit<Keyb>,
+    keyboard: &mut Vec<Keyb, REPORT_SIZE>,
 ) {
     match emit {
         Emit::String(str) => {
@@ -94,8 +116,7 @@ fn build_keyboard_report_layers(
             keyboard.push(code).unwrap();
         }
         Emit::Identity => {
-            let evts = identity(*first, *last);
-            keyboard.extend(evts);
+            build_keyboard_report_identity(identity, identity, keyboard);
         }
         _ => {}
     }
@@ -105,53 +126,30 @@ fn build_keyboard_report_layers(
 mod tests {
     use crate::parse::Emit::*;
     use crate::{
-        lex::{Key, CHORD_SIZE},
+        lex::{Key, REPORT_SIZE},
         parse::Emit,
         report::{
-            build_keyboard_report, build_keyboard_report_layers, build_keyboard_report_modifiers,
+            build_keyboard_report, build_keyboard_report_identity, build_keyboard_report_modifiers,
         },
     };
     use heapless::Vec;
     use usbd_human_interface_device::page::Keyboard as Keyb;
 
-    #[allow(unused_variables)]
-    fn identity(first: Key, last: Key) -> Vec<Keyb, CHORD_SIZE> {
-        let mut keyboard: Vec<Keyb, CHORD_SIZE> = Vec::new();
-        if first == Key::R16 {
-            keyboard.push(Keyb::Keyboard1).unwrap();
-        } else {
-            keyboard.push(Keyb::Q).unwrap();
-        }
-        keyboard
-    }
-
     #[test]
     fn test_report_identity() {
-        let mut keyboard: Vec<Keyb, CHORD_SIZE> = Vec::new();
+        let mut keyboard: Vec<Keyb, REPORT_SIZE> = Vec::new();
         let emit = crate::parse::Emit::Identity;
-        let first = &crate::lex::Key::L1;
-        let last = first;
-        build_keyboard_report_layers(emit, first, last, identity, &mut keyboard);
+        let identity = Emit::Code(Keyb::Q);
+        build_keyboard_report_identity(emit, identity, &mut keyboard);
         assert_eq!(Keyb::Q, keyboard[0]);
     }
 
     #[test]
-    fn test_report_identity_layer() {
-        let mut keyboard: Vec<Keyb, CHORD_SIZE> = Vec::new();
-        let emit = crate::parse::Emit::Identity;
-        let first = &crate::lex::Key::R16;
-        let last = &crate::lex::Key::L1;
-        build_keyboard_report_layers(emit, first, last, identity, &mut keyboard);
-        assert_eq!(Keyb::Keyboard1, keyboard[0]);
-    }
-
-    #[test]
     fn test_report_string() {
-        let mut keyboard: Vec<Keyb, CHORD_SIZE> = Vec::new();
+        let mut keyboard: Vec<Keyb, REPORT_SIZE> = Vec::new();
         let emit = Emit::String("Hello");
-        let first = &crate::lex::Key::L1;
-        let last = first;
-        build_keyboard_report_layers(emit, first, last, identity, &mut keyboard);
+        let identity = crate::parse::Emit::Identity;
+        build_keyboard_report_identity(emit, identity, &mut keyboard);
         assert_eq!(Keyb::H, keyboard[0]);
         assert_eq!(Keyb::Out, keyboard[1]);
         assert_eq!(Keyb::E, keyboard[2]);
@@ -165,17 +163,16 @@ mod tests {
 
     #[test]
     fn test_report_code() {
-        let mut keyboard: Vec<Keyb, CHORD_SIZE> = Vec::new();
-        let emit = Emit::Code(Keyb::A);
-        let first = &crate::lex::Key::L1; // originally Q, but translated to A
-        let last = first;
-        build_keyboard_report_layers(emit, first, last, identity, &mut keyboard);
+        let mut keyboard: Vec<Keyb, REPORT_SIZE> = Vec::new();
+        let emit = Emit::Identity;
+        let identity = Emit::Code(Keyb::A);
+        build_keyboard_report_identity(emit, identity, &mut keyboard);
         assert_eq!(Keyb::A, keyboard[0]);
     }
 
     #[test]
     fn test_report_modifiers_left() {
-        let mut keyboard: Vec<Keyb, CHORD_SIZE> = Vec::new();
+        let mut keyboard: Vec<Keyb, REPORT_SIZE> = Vec::new();
         let emit = Emit::Shift(&Emit::Identity);
         let first = &crate::lex::Key::L8;
         let emit = build_keyboard_report_modifiers(emit, first, &mut keyboard);
@@ -185,7 +182,7 @@ mod tests {
 
     #[test]
     fn test_report_modifiers_right() {
-        let mut keyboard: Vec<Keyb, CHORD_SIZE> = Vec::new();
+        let mut keyboard: Vec<Keyb, REPORT_SIZE> = Vec::new();
         let emit = Emit::Ctrl(&Emit::Identity);
         let first = &crate::lex::Key::R8;
         let emit = build_keyboard_report_modifiers(emit, first, &mut keyboard);
@@ -194,33 +191,23 @@ mod tests {
     }
 
     #[test]
-    fn test_build_keyboard_report_no_mods() {
-        let mut keyboard: Vec<Keyb, CHORD_SIZE> = Vec::new();
-        let emit = Emit::Identity;
-        let first = &crate::lex::Key::R16;
-        let last = &crate::lex::Key::L1;
-        build_keyboard_report(emit, first, last, identity, &mut keyboard);
-        assert_eq!(Keyb::Keyboard1, keyboard[0]);
-    }
-
-    #[test]
     fn test_build_keyboard_report_shift() {
-        let mut keyboard: Vec<Keyb, CHORD_SIZE> = Vec::new();
+        let mut keyboard: Vec<Keyb, REPORT_SIZE> = Vec::new();
         let emit = Emit::Shift(&Emit::Identity);
-        let first = &crate::lex::Key::R16;
-        let last = &crate::lex::Key::L1;
-        build_keyboard_report(emit, first, last, identity, &mut keyboard);
+        let first = &Key::R6; // right gui
+        let identity = Emit::Code(Keyb::Keyboard1);
+        build_keyboard_report(emit, identity, first, &mut keyboard);
         assert_eq!(Keyb::RightShift, keyboard[0]);
         assert_eq!(Keyb::Keyboard1, keyboard[1]);
     }
 
     #[test]
     fn test_build_keyboard_report_god() {
-        let mut keyboard: Vec<Keyb, CHORD_SIZE> = Vec::new();
+        let mut keyboard: Vec<Keyb, REPORT_SIZE> = Vec::new();
         let emit = Mod(&Ctrl(&Alt(&Shift(&Emit::Identity))));
         let first = &Key::R6; // right gui
-        let last = &Key::L1;
-        build_keyboard_report(emit, first, last, identity, &mut keyboard);
+        let identity = Emit::Code(Keyb::Q);
+        build_keyboard_report(emit, identity, first, &mut keyboard);
         assert_eq!(Keyb::RightGUI, keyboard[0]);
         assert_eq!(Keyb::RightControl, keyboard[1]);
         assert_eq!(Keyb::RightAlt, keyboard[2]);

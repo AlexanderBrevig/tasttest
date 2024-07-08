@@ -1,13 +1,114 @@
 use heapless::Vec;
 use k_board::{keyboard::Keyboard, keys::Keys};
-use tastlib::lex::{chord, Event, Key, Pressed, CHORD_SIZE, STACK_SIZE};
-use tastlib::parse::parse_with;
-use tastlib::report::build_keyboard_report;
-use usbd_human_interface_device::page::Keyboard as Keyb;
+use tastlib::{
+    lex::{Event, Key, STACK_SIZE},
+    report::eval,
+};
 
 /// This mod is mandatory when setting up a custom firmware
 mod config;
-use config::*;
+
+/*
+    This is a nasty playground for playing with Tastlib
+    UPPERCASE = key down
+    lowercase = key up
+
+    HOME   tab          (L16)
+    END    backspace    (L17)
+    ENTER  return/enter (R17)
+    SPACE  space        (R16)
+
+    Try typing:
+        Oo                 => Keyboard: [O] -> emit an O
+        SPACE I i SPACE    => Keyboard: [RightShift, Keyboard8] -> emit *
+*/
+fn main() {
+    let mut stack: Vec<Event, STACK_SIZE> = Vec::new();
+    let mut charstck: std::vec::Vec<char> = vec![];
+    let debug = |_stack: &Vec<Event, STACK_SIZE>, _charstack: &std::vec::Vec<char>| {
+        // std::process::Command::new("clear").status().unwrap();
+        // println!("{:?}", &stack);
+        // println!("{:?}", &charstack);
+    };
+
+    let mut tab_toggle = false;
+    let mut bck_toggle = false;
+    let mut spc_toggle = false;
+    let mut ret_toggle = false;
+
+    for key in Keyboard::new() {
+        match key {
+            Keys::Char(chr) => {
+                if stack.push(from_char_to_event(chr)).is_err() {
+                    panic!("Should have enough capacity to push on stack");
+                }
+                charstck.push(chr);
+                debug(&stack, &charstck);
+            }
+            Keys::Delete => {
+                stack.pop();
+                charstck.pop();
+                debug(&stack, &charstck);
+            }
+
+            Keys::Home => {
+                tab_sim(&mut tab_toggle, &mut stack, &mut charstck);
+                debug(&stack, &charstck);
+            }
+            Keys::End => {
+                bck_sim(&mut bck_toggle, &mut stack, &mut charstck);
+                debug(&stack, &charstck);
+            }
+            Keys::Space => {
+                ret_sim(&mut ret_toggle, &mut stack, &mut charstck);
+                debug(&stack, &charstck);
+            }
+            Keys::Enter => {
+                spc_sim(&mut spc_toggle, &mut stack, &mut charstck);
+                debug(&stack, &charstck);
+            }
+            Keys::Escape => {
+                break;
+            }
+            // Keys::Enter => {
+            //     charstck.clear();
+            //     eval(&mut stack, &config::RULES);
+            // }
+            _ => {}
+        }
+        let keyboard = eval(&mut stack, &config::RULES);
+        if !keyboard.is_empty() {
+            println!("Keyboard: {:?}", keyboard);
+        }
+    }
+}
+
+fn sim(key: Key, toggler: &mut bool, stack: &mut Vec<Event, 128>, chars: &mut std::vec::Vec<char>) {
+    if *toggler {
+        stack.push(Event::Up(key)).unwrap();
+        chars.push('{');
+    } else {
+        stack.push(Event::Down(key)).unwrap();
+        chars.push('}');
+    }
+    *toggler = !*toggler;
+}
+
+fn spc_sim(toggler: &mut bool, stack: &mut Vec<Event, 128>, chars: &mut std::vec::Vec<char>) {
+    sim(Key::R16, toggler, stack, chars);
+}
+
+fn ret_sim(toggler: &mut bool, stack: &mut Vec<Event, 128>, chars: &mut std::vec::Vec<char>) {
+    sim(Key::R17, toggler, stack, chars);
+}
+
+fn bck_sim(toggler: &mut bool, stack: &mut Vec<Event, 128>, chars: &mut std::vec::Vec<char>) {
+    sim(Key::L17, toggler, stack, chars);
+}
+
+fn tab_sim(toggler: &mut bool, stack: &mut Vec<Event, 128>, chars: &mut std::vec::Vec<char>) {
+    sim(Key::L16, toggler, stack, chars);
+}
 
 #[rustfmt::skip]
 fn from_char_to_event(value: char) -> Event {
@@ -32,139 +133,10 @@ fn from_char_to_event(value: char) -> Event {
     }
 }
 
-fn eval(stack: &mut Vec<Event, STACK_SIZE>) -> Vec<Keyb, CHORD_SIZE> {
-    let mut keyboard: Vec<Keyb, CHORD_SIZE> = Vec::new();
-
-    let chrd = chord(stack);
-
-    if chrd.is_empty() {
-        return keyboard;
-    }
-
-    #[rustfmt::skip]
-    let emit = parse_with(
-        &chrd,
-        [ R_GUI, R_ALT, R_SHIFT, R_CTRL, R_GUI_ALT, R_GUI_SHIFT, R_GUI_CTRL, R_ALT_SHIFT, R_CTRL_ALT, R_CTRL_SHIFT,
-          L_GUI, L_ALT, L_SHIFT, L_CTRL, L_ALLMOD, L_GUI_ALT, L_GUI_SHIFT, L_GUI_CTRL, L_ALT_SHIFT, L_CTRL_ALT, L_CTRL_SHIFT,],
-    );
-    println!("chord: {:?}", chrd);
-
-    let Pressed(first) = chrd.first().unwrap();
-    let Pressed(last) = chrd.last().unwrap();
-
-    build_keyboard_report(emit, first, last, identity, &mut keyboard);
-    // TODO: do whatever you want with the report
-    println!("keyboard {:?}", keyboard);
-    keyboard
-}
-
-fn identity(first: Key, last: Key) -> Vec<Keyb, CHORD_SIZE> {
-    match Pressed(first) {
-        TAB if first != last => tab_layer(last),
-        BCK if first != last => bck_layer(last),
-        SPC if first != last => spc_layer(last),
-        RET if first != last => ret_layer(last),
-        _ => base_layer(last),
-    }
-}
-
-/*
-
-    This is a nasty playground for playing with Tastlib
-    UPPERCASE = key down
-    lowercase = key up
-
-    LEFT_ARROW   tab
-    RIGHT_ARROW  backspace
-    UP_ARROW     return/enter
-    DOWN_ARROW   space
-*/
-fn main() {
-    let mut stack: Vec<Event, STACK_SIZE> = Vec::new();
-    let mut charstck: std::vec::Vec<char> = vec![];
-    let render = |stack: &Vec<Event, STACK_SIZE>, charstack: &std::vec::Vec<char>| {
-        std::process::Command::new("clear").status().unwrap();
-        println!("{:?}", &stack);
-        println!("{:?}", &charstack);
-    };
-
-    let mut l16toggle = false;
-    let mut l17toggle = false;
-    let mut r16toggle = false;
-    let mut r17toggle = false;
-
-    for key in Keyboard::new() {
-        match key {
-            Keys::Char(chr) => {
-                if stack.push(from_char_to_event(chr)).is_err() {
-                    panic!("Should have enough capacity to push on stack");
-                }
-                charstck.push(chr);
-                render(&stack, &charstck);
-            }
-            Keys::Delete => {
-                stack.pop();
-                charstck.pop();
-                render(&stack, &charstck);
-            }
-
-            Keys::Left => {
-                if l16toggle {
-                    stack.push(Event::Up(Key::L16)).unwrap();
-                    charstck.push('<');
-                } else {
-                    stack.push(Event::Down(Key::L16)).unwrap();
-                    charstck.push('>');
-                }
-                l16toggle = !l16toggle;
-                render(&stack, &charstck);
-            }
-            Keys::Right => {
-                if l17toggle {
-                    stack.push(Event::Up(Key::L17)).unwrap();
-                    charstck.push('[');
-                } else {
-                    stack.push(Event::Down(Key::L17)).unwrap();
-                    charstck.push(']');
-                }
-                l17toggle = !l17toggle;
-                render(&stack, &charstck);
-            }
-            Keys::Up => {
-                if r16toggle {
-                    stack.push(Event::Up(Key::R16)).unwrap();
-                    charstck.push('(');
-                } else {
-                    stack.push(Event::Down(Key::R16)).unwrap();
-                    charstck.push(')');
-                }
-                r16toggle = !r16toggle;
-                render(&stack, &charstck);
-            }
-            Keys::Down => {
-                if r17toggle {
-                    stack.push(Event::Up(Key::R17)).unwrap();
-                    charstck.push('{');
-                } else {
-                    stack.push(Event::Down(Key::R17)).unwrap();
-                    charstck.push('}');
-                }
-                r17toggle = !r17toggle;
-                render(&stack, &charstck);
-            }
-            Keys::Escape => {
-                break;
-            }
-            Keys::Enter => {
-                charstck.clear();
-                eval(&mut stack);
-            }
-            _ => {}
-        }
-    }
-}
 #[cfg(test)]
 mod tests {
+    use usbd_human_interface_device::page::Keyboard as Keyb;
+
     use super::Event::*;
     use super::Key::*;
     use super::*;
@@ -172,7 +144,7 @@ mod tests {
     #[test]
     fn test_empty() {
         let mut stack: Vec<Event, STACK_SIZE> = Vec::new();
-        let keyboard = eval(&mut stack);
+        let keyboard = eval(&mut stack, &config::RULES);
         assert!(keyboard.is_empty());
     }
 
@@ -182,7 +154,7 @@ mod tests {
         stack.push(Down(L1)).unwrap();
         stack.push(Up(L1)).unwrap();
 
-        let keyboard = eval(&mut stack);
+        let keyboard = eval(&mut stack, &config::RULES);
         assert_eq!(Keyb::Q, keyboard[0]);
     }
 
@@ -194,7 +166,7 @@ mod tests {
         stack.push(Up(L13)).unwrap();
         stack.push(Up(R9)).unwrap();
 
-        let keyboard = eval(&mut stack);
+        let keyboard = eval(&mut stack, &config::RULES);
         assert_eq!(Keyb::RightControl, keyboard[0]);
         assert_eq!(Keyb::C, keyboard[1]);
     }
@@ -207,8 +179,8 @@ mod tests {
         stack.push(Up(L10)).unwrap();
         stack.push(Up(R17)).unwrap();
 
-        let keyboard = eval(&mut stack);
-        assert_eq!(Keyb::LeftShift, keyboard[0]);
+        let keyboard = eval(&mut stack, &config::RULES);
+        assert_eq!(Keyb::RightShift, keyboard[0]);
         assert_eq!(Keyb::Backslash, keyboard[1]);
     }
 
@@ -218,7 +190,7 @@ mod tests {
         stack.push(Down(L16)).unwrap();
         stack.push(Up(L16)).unwrap();
 
-        let keyboard = eval(&mut stack);
+        let keyboard = eval(&mut stack, &config::RULES);
         assert_eq!(Keyb::Tab, keyboard[0]);
     }
 }
