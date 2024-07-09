@@ -5,30 +5,18 @@ use tastlib::{
     report::eval,
 };
 
-/// This mod is mandatory when setting up a custom firmware
+/// This is where you define your layout
 mod config;
 
-/*
-    This is a nasty playground for playing with Tastlib
-    UPPERCASE = key down
-    lowercase = key up
-
-    HOME   tab          (L16)
-    END    backspace    (L17)
-    ENTER  return/enter (R17)
-    SPACE  space        (R16)
-
-    Try typing:
-        Oo                 => Keyboard: [O] -> emit an O
-        SPACE I i SPACE    => Keyboard: [RightShift, Keyboard8] -> emit *
-*/
 fn main() {
+    print_usage();
     let mut stack: Vec<Event, STACK_SIZE> = Vec::new();
     let mut charstck: std::vec::Vec<char> = vec![];
-    let debug = |_stack: &Vec<Event, STACK_SIZE>, _charstack: &std::vec::Vec<char>| {
-        // std::process::Command::new("clear").status().unwrap();
-        // println!("{:?}", &stack);
-        // println!("{:?}", &charstack);
+    let debug = |stack: &Vec<Event, STACK_SIZE>, charstack: &std::vec::Vec<char>| {
+        std::process::Command::new("clear").status().unwrap();
+        print_usage();
+        println!("\t{:?}", &stack);
+        println!("\t{:?}", &charstack);
     };
 
     let mut tab_toggle = false;
@@ -39,8 +27,11 @@ fn main() {
     for key in Keyboard::new() {
         match key {
             Keys::Char(chr) => {
-                if stack.push(from_char_to_event(chr)).is_err() {
-                    panic!("Should have enough capacity to push on stack");
+                if stack.push(simulate_tastlib_input(chr)).is_err() {
+                    println!("You're trying too hard ;) Resetting stacks.");
+                    println!("`tastlib` is meant for embedded devices, so I've capped the input event buffer to 128.");
+                    stack.clear();
+                    charstck.clear();
                 }
                 charstck.push(chr);
                 debug(&stack, &charstck);
@@ -70,15 +61,12 @@ fn main() {
             Keys::Escape => {
                 break;
             }
-            // Keys::Enter => {
-            //     charstck.clear();
-            //     eval(&mut stack, &config::RULES);
-            // }
             _ => {}
         }
         let keyboard = eval(&mut stack, &config::RULES);
         if !keyboard.is_empty() {
-            println!("Keyboard: {:?}", keyboard);
+            charstck.clear();
+            println!("\tKeyboard: {:?}", keyboard);
         }
     }
 }
@@ -111,7 +99,7 @@ fn tab_sim(toggler: &mut bool, stack: &mut Vec<Event, 128>, chars: &mut std::vec
 }
 
 #[rustfmt::skip]
-fn from_char_to_event(value: char) -> Event {
+fn simulate_tastlib_input(value: char) -> Event {
     use tastlib::lex::Event::Down as D;
     use tastlib::lex::Event::Up as U;
     match value {
@@ -133,12 +121,37 @@ fn from_char_to_event(value: char) -> Event {
     }
 }
 
+fn print_usage() {
+    println!(
+        "\
+        This is a nasty playground for playing with Tastlib \n\
+        UPPERCASE = key down\n\
+        lowercase = key up\n\
+        \n\
+        HOME   tab          (L16)\n\
+        END    backspace    (L17)\n\
+        ENTER  return/enter (R17)\n\
+        SPACE  space        (R16)\n\
+        \n\
+        Try typing:\n\
+            Oo                 => Keyboard: [O] -> emit an O \n\
+            JCcj               => Keyboard: [RightCtrl, C] -> Copy command \n\
+            SPACE I i SPACE    => Keyboard: [RightShift, Keyboard8] -> emit *\n\
+        \n\
+        ESC to quit
+    "
+    );
+}
+
 #[cfg(test)]
 mod tests {
+    use tastlib::lex::qwerty::*;
     use usbd_human_interface_device::page::Keyboard as Keyb;
 
+    use crate::config::RET;
+    use crate::config::TAB;
+
     use super::Event::*;
-    use super::Key::*;
     use super::*;
 
     #[test]
@@ -151,8 +164,8 @@ mod tests {
     #[test]
     fn test_single() {
         let mut stack: Vec<Event, STACK_SIZE> = Vec::new();
-        stack.push(Down(L1)).unwrap();
-        stack.push(Up(L1)).unwrap();
+        stack.push(Down(Q.0)).unwrap();
+        stack.push(Up(Q.0)).unwrap();
 
         let keyboard = eval(&mut stack, &config::RULES);
         assert_eq!(Keyb::Q, keyboard[0]);
@@ -161,10 +174,10 @@ mod tests {
     #[test]
     fn test_copy() {
         let mut stack: Vec<Event, STACK_SIZE> = Vec::new();
-        stack.push(Down(R9)).unwrap();
-        stack.push(Down(L13)).unwrap();
-        stack.push(Up(L13)).unwrap();
-        stack.push(Up(R9)).unwrap();
+        stack.push(Down(J.0)).unwrap();
+        stack.push(Down(C.0)).unwrap();
+        stack.push(Up(C.0)).unwrap();
+        stack.push(Up(J.0)).unwrap();
 
         let keyboard = eval(&mut stack, &config::RULES);
         assert_eq!(Keyb::RightControl, keyboard[0]);
@@ -174,10 +187,10 @@ mod tests {
     #[test]
     fn test_layer_pipe() {
         let mut stack: Vec<Event, STACK_SIZE> = Vec::new();
-        stack.push(Down(R17)).unwrap();
-        stack.push(Down(L10)).unwrap();
-        stack.push(Up(L10)).unwrap();
-        stack.push(Up(R17)).unwrap();
+        stack.push(Down(RET.0)).unwrap();
+        stack.push(Down(G.0)).unwrap();
+        stack.push(Up(G.0)).unwrap();
+        stack.push(Up(RET.0)).unwrap();
 
         let keyboard = eval(&mut stack, &config::RULES);
         assert_eq!(Keyb::RightShift, keyboard[0]);
@@ -187,8 +200,8 @@ mod tests {
     #[test]
     fn test_tab_only() {
         let mut stack: Vec<Event, STACK_SIZE> = Vec::new();
-        stack.push(Down(L16)).unwrap();
-        stack.push(Up(L16)).unwrap();
+        stack.push(Down(TAB.0)).unwrap();
+        stack.push(Up(TAB.0)).unwrap();
 
         let keyboard = eval(&mut stack, &config::RULES);
         assert_eq!(Keyb::Tab, keyboard[0]);

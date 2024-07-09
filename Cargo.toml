@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+
 heapless = "0.8.0"
 k_board = {version = "1.2.4", features = ["full"]}
+# Needed by tastlib macros
+# Should probably fix in lib
 usbd-human-interface-device = "0.5.0"
+tastlib = { git  = "https://github.com/alexanderbrevig/tastlib.git" }

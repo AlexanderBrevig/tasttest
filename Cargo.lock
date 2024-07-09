@@ -222,6 +222,17 @@ version = "0.1.0"
 dependencies = [
  "heapless",
  "k_board",
+ "tastlib 0.1.0 (git+https://github.com/alexanderbrevig/tastlib.git)",
+ "usbd-human-interface-device",
+]
+
+[[package]]
+name = "tastlib"
+version = "0.1.0"
+source = "git+https://github.com/alexanderbrevig/tastlib.git#1e8da198a300ca2b58b3380039219a9fd9a9afe0"
+dependencies = [
+ "heapless",
+ "k_board",
  "usbd-human-interface-device",
 ]
 
