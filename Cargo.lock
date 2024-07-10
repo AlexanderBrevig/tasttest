@@ -229,7 +229,7 @@ dependencies = [
 [[package]]
 name = "tastlib"
 version = "0.1.0"
-source = "git+https://github.com/alexanderbrevig/tastlib.git#1e8da198a300ca2b58b3380039219a9fd9a9afe0"
+source = "git+https://github.com/alexanderbrevig/tastlib.git#aeb6cb32aeab2656349a583e2159f5f45c91dfc4"
 dependencies = [
  "heapless",
  "k_board",

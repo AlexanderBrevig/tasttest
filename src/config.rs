@@ -13,43 +13,31 @@ use tastlib::parse::ChordEvent::*;
                 L16 L17       R17 R16
 */
 
-// Thumb clusters
-alias!(TAB, L16);
-alias!(BCK, L17);
-alias!(RET, R17);
-alias!(SPC, R16);
+alias!(TAB, Left, K16);
+alias!(BCK, Left, K17);
+alias!(RET, Right, K17);
+alias!(SPC, Right, K16);
 
 // Homerow mods left
-alias!(L_G, L6); //GUI/WIN/COMMAND
-alias!(L_A, L7); //ALT/OPTION
-alias!(L_S, L8);
-alias!(L_C, L9);
+alias!(L_G, Left, K6); //GUI/WIN/COMMAND
+alias!(L_A, Left, K7); //ALT/OPTION
+alias!(L_S, Left, K8);
+alias!(L_C, Left, K9);
 // Homerow mods right
-alias!(R_G, R6);
-alias!(R_A, R7);
-alias!(R_S, R8);
-alias!(R_C, R9);
+alias!(R_G, Right, K6);
+alias!(R_A, Right, K7);
+alias!(R_S, Right, K8);
+alias!(R_C, Right, K9);
 
 #[rustfmt::skip]
 mod unformatted {
     use tastlib::{chord, parse::ChordEmit};
     use usbd_human_interface_device::page::Keyboard;
-    /*
-        A `chord!` requires 
-        * A unique name (exported as constant)
-        * A length of the following array of input events
-        * An ouput emit
-    */
     // Homerow mods right
-    // If our uses presses the right Gui, then any key from the left
-    // We will emit a `Mod` of the `Identity`
-    // This means, that if someone presses `R6` then `L2`
-    // `Mod(Identity)` becomes `Mod(O)`
     chord!( R_GUI,          2, [On(R_G), LAny],                     Mod(&Identity));
     chord!( R_ALT,          2, [On(R_A), LAny],                     Alt(&Identity));
     chord!( R_SHIFT,        2, [On(R_S), LAny],                     Shift(&Identity));
     chord!( R_CTRL,         2, [On(R_C), LAny],                     Ctrl(&Identity));
-    // Both simly means both is needed, but the order is not important
     chord!( R_GUI_ALT,      2, [Both(R_G, R_A), LAny],              Mod(&Alt(&Identity)));
     chord!( R_GUI_SHIFT,    2, [Both(R_G, R_S), LAny],              Mod(&Shift(&Identity)));
     chord!( R_GUI_CTRL,     2, [Both(R_G, R_C), LAny],              Mod(&Ctrl(&Identity)));
@@ -71,7 +59,8 @@ mod unformatted {
     chord!( L_CTRL_SHIFT,   2, [Both(L_C, L_S), RAny],              Ctrl(&Shift(&Identity)));
     chord!( L_ALLMOD,       4, [On(L_A), On(L_S), On(L_C), RAny],   Ctrl(&Alt(&Shift(&Identity))));
 
-    chord!(TAB_SPC_ESC,     2, [On(TAB), On(SPC)], Code(Keyb::Escape));
+
+    chord!(TAB_SPC_ESC,   1, [Both(TAB, SPC)], Code(Keyb::Escape));
 
     // Tab layer (shift)
     chord!(TAB_SHIFT,     2, [On(TAB), Any], Shift(&Identity));
@@ -178,10 +167,6 @@ mod unformatted {
     chord!(ON_DOT,             1, [On(DOT)],          Code(Keyb::Dot));
     chord!(ON_FORWARDSLASH,    1, [On(FORWARDSLASH)], Code(Keyb::ForwardSlash));
 
-    // If you find it a daunting task creating this array
-    // May I humbly suggest you check out Helix or NeoVim?
-    // It's just a few keystrokes ;) 
-    // Also... Sorry
     pub const RULES: [ChordEmit<Keyboard>; 111] = [
         R_GUI,
         R_ALT,
